@@ -10,7 +10,7 @@ ruleset track_trips2 {
         trip_length = mileage
     always {
       raise explicit event "trip_processed"
-      attributes { "attributes": event:attrs(), "time" : time:now(), "mileage" : m}
+      attributes { "attributes": event:attrs(), "time" : time:now(), "mileage" : mileage}
     }
   }
 
