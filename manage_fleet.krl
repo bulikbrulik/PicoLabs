@@ -41,6 +41,11 @@ ruleset manage_fleet {
 		vehicles = function() {
       			ent:vehicles
     		}
+		
+		nameFromId = function(vehicle_id) {
+      			"Vehicle " + vehicle_id + " Pico"
+    		}
+
 	}
 
 	rule create_vehicle {
