@@ -1,7 +1,15 @@
 ruleset track_trips2 {
+  	meta {
+    		name "Track Trips2"
+    		description <<Track individual pico trips>>
+    		author "Austin Bolingbroke"
+    		logging on
+    		shares __testing
+  	}
 
   global {
     long_trip = 500
+    __testing = { "events": [ {"domain": "car", "type": "new_trip", "attrs": ["mileage"]}]}
   }
 
   rule process_trip {
@@ -10,7 +18,7 @@ ruleset track_trips2 {
         trip_length = mileage
     always {
       raise explicit event "trip_processed"
-      attributes { "attributes": event:attrs(), "time" : time:now(), "mileage" : mileage}
+      attributes { "attributes": event:attrs(), "timestamp" : time:now(), "mileage" : mileage}
     }
   }
 

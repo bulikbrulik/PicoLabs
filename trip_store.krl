@@ -4,7 +4,7 @@ ruleset trip_store {
     		description <<A first ruleset for single pico part 3>>
     		author "Austin Bolingbroke"
     		logging on
-    		shares trips, long_trips, short_trips
+    		shares trips, long_trips, short_trips, __testing
     		provides trips, long_trips, short_trips
   	}
 	global {
@@ -20,6 +20,12 @@ ruleset trip_store {
 		short_trips = function() {
 			ent:tripArr.difference(ent:long_tripArr)
 		}
+
+		 __testing = { "queries": [ { "name": "trips" },
+                               { "name": "long_trips" },
+                               { "name": "short_trips" } ],
+                               "events": [ { "domain": "car", "type":"trip_reset" }]                      
+                             }
 	}
 
 	rule collect_trips {
@@ -59,4 +65,16 @@ ruleset trip_store {
       			ent:long_tripArr := empty_long_trips
     		}
   	}
-}
+  	rule generate_report {
+  	  	select when car generate_report
+  	  	pre {
+  	  	  	eci = event:attr("sender_eci")
+  	  	  	rcn = event:attr("rcn")
+  	  	  	vehicle_id = event:attr("vehicle_id")
+  	  	  	attributes = {"rcn": rcn,
+  	  	  	"vehicle_id": vehicle_id,
+  	  	  	"trips": ent:tripArr}
+  	  	}
+  	  	event:send({ "eci": eci, "eid": "send_report", "domain": "car", "type": "send_report", "attrs": attributes})
+  	}
+} 

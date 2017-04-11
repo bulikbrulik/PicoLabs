@@ -1,4 +1,4 @@
-ruleset manage_fleet {
+ruleset manage_fleet { 
 	meta {
 		name "Manage Fleet"
 		description <<A ruleset for Multiple Picos Part 1>>
@@ -6,7 +6,7 @@ ruleset manage_fleet {
 		use module io.picolabs.pico alias wrangler
 		use module Subscriptions
 		logging on
-		shares vehicles, get_all_vehicle_trips, last_five_reports, __testing
+		shares __testing, vehicles, get_all_vehicle_trips, last_five_reports
   	}
 	
 	global {
@@ -41,9 +41,37 @@ ruleset manage_fleet {
 		vehicles = function() {
       			ent:vehicles
     		}
-		
+
 		nameFromId = function(vehicle_id) {
       			"Vehicle " + vehicle_id + " Pico"
+    		}
+		
+		childFromId = function(vehicle_id) {
+      			ent:vehicles{vehicle_id}
+    		}
+
+    		subscriptionFromId = function(vehicle_id) {
+      			"vehicle_" + vehicle_id
+    		}
+
+    		subscriptionName = function(vehicle_id) {
+      			"car:" + subscriptionFromId(vehicle_id)
+    		}
+
+		urlForQuery = function(subscription) {
+      			"http://ec2-54-70-125-113.us-west-2.compute.amazonaws.com:8080/sky/cloud/" + subscription{"attributes"}{"subscriber_eci"} + "/trip_store/trips"
+    		}
+
+    		get_all_vehicle_trips = function() {
+      			Subscriptions:getSubscriptions().filter(function(x) {x{"attributes"}{"subscriber_role"} == "vehicle"}).map(function(x) {
+        			result = http:get(urlForQuery(x));
+        			result{"content"}.decode()
+      			})
+    		}
+
+    		last_five_reports = function() {
+      			length = ent:reports.values().length();
+      			(length > 5) => ent:reports.values().slice(length - 5, length - 1) | ent:reports.values()
     		}
 
 	}
@@ -79,7 +107,7 @@ ruleset manage_fleet {
      			"attrs": { "rid": "Subscriptions", "vehicle_id": vehicle_id } } )
     		event:send({ "eci": vehicle.eci, "eid": "install-ruleset",
       			"domain": "pico", "type": "new_ruleset",
-      			"attrs": { "rid": "extra_trips", "vehicle_id": vehicle_id } } )
+      			"attrs": { "rid": "track_trips2", "vehicle_id": vehicle_id } } )
     		event:send({ "eci": vehicle.eci, "eid": "install-ruleset",
       			"domain": "pico", "type": "new_ruleset",
       			"attrs": { "rid": "trip_store", "vehicle_id": vehicle_id } } )
@@ -117,6 +145,51 @@ ruleset manage_fleet {
     		}
   	}
 
+	rule start_report {
+		select when car start_report
+		pre {
+			rcn = time:now().replace(".", ":")
+			eci = meta:eci
+		}
+		fired {
+			raise explicit event "generate_report"
+			attributes {"rcn": rcn, "eci": eci}
+		}
+	}
+
+	rule generate_report {
+		select when explicit generate_report
+		foreach Subscriptions:getSubscriptions() setting (subscription)
+			pre {
+        			eci = event:attr("eci")
+        			rcn = event:attr("rcn")
+      			}
+      			if subscription{"attributes"}{"subscriber_role"} == "vehicle" then
+        		event:send({ "eci": subscription{"attributes"}{"subscriber_eci"}, "eid": "generate_report", "domain": "car", "type": "generate_report", "attrs": {"rcn": rcn, "sender_eci": eci, "vehicle_id": subscription{"name"}}})
+  	}
+
+  	rule collect_report {
+    		select when car send_report
+    		pre {
+      			rcn = event:attr("rcn")
+      			vehicle_id = event:attr("vehicle_id")
+     			trips = event:attr("trips")
+    		}
+    		always {
+      			ent:reports := ent:reports.defaultsTo({});
+      			ent:reports{[rcn, "total_vehicles"]} := ent:vehicles.length();
+      			ent:reports{[rcn, "vehicles_responded"]} := ent:reports{[rcn]}.length()-1;
+      			ent:reports{[rcn, vehicle_id]} := trips
+    		}
+  	}
+
+  	rule clear_reports {
+    		select when car clear_reports
+    		always {
+      			ent:reports := {}
+    		}
+  	}
 }
+
 
 
