@@ -92,4 +92,26 @@ ruleset manage_fleet {
     		}
   	}
 
+	rule delete_vehicle {
+    		select when car unneeded_vehicle
+    		pre {
+      			vehicle_id = event:attr("vehicle_id")
+      			exists = ent:vehicles >< vehicle_id
+      			eci = meta:eci
+      			child_to_delete = childFromId(vehicle_id)
+    		}
+    		if exists then
+      			send_directive("vehicle removed")
+        		with vehicle_id = vehicle_id
+    		fired {
+      			raise wrangler event "subscription_cancellation"
+        		with subscription_name = subscriptionName(vehicle_id);
+      			raise pico event "delete_child_request"
+        		attributes child_to_delete;
+      			ent:vehicles{[vehicle_id]} := null
+    		}
+  	}
+
+}
+
 
