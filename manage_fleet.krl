@@ -90,7 +90,7 @@ ruleset manage_fleet {
     		} else {
       			raise pico event "new_child_request"
         		attributes { "dname": nameFromId(vehicle_id),
-                     	"color": "#006400",
+                     	"color": "#fc8b02",
                      	"vehicle_id": vehicle_id }
     		}
   	}
