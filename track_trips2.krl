@@ -1,28 +1,29 @@
-ruleset track_car_trips {
+ruleset track_trips2 {
 
   global {
-    long_trip_length = 500;
+    long_trip = 500
   }
 
   rule process_trip {
-    select when car new_trip mileage "(\d*)" setting(mileage)
-    pre {}
-    {
-      send_directive("trip") with
+    select when car new_trip mileage re#(.*)# setting(mileage)
+    send_directive("trip") with
         trip_length = mileage
-    }
-    fired {
+    always {
       raise explicit event "trip_processed"
-        attributes event:attrs()
+      attributes { "attributes": event:attrs(), "time" : time:now(), "mileage" : m}
     }
   }
 
   rule find_long_trips {
-    select when explicit trip_processed mileage "(\d*)" setting(mileage)
-    always {
+    select when explicit trip_processed
+    pre {
+      mileage = event:attr("mileage")
+      timestamp = event:attr("timestamp")
+    }
+    fired {
       raise explicit event "found_long_trip"
-        attributes event:attrs()
-      if (mileage > long_trip_length);
+        attributes{"mileage": mileage, "timestamp": timestamp}
+      if mileage.as("Number") >= long_trip
     }
   }
 }
